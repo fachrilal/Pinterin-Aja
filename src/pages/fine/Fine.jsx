@@ -1,216 +1,288 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useParams } from 'react-router-dom';
-import { API_URL } from '../../constan';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { API_URL } from "../../constan";
 
-export default function MemberHistory() {
-  const [history, setHistory] = useState([]);
+export default function FinePage() {
   const [fines, setFines] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [member, setMember] = useState(null);
+  const [members, setMembers] = useState([]);
   const [books, setBooks] = useState([]);
-  const [error, setError] = useState(null);
-  const { id } = useParams();
+  const [lendings, setLendings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    id_member: "",
+    id_buku: "",
+    jumlah_denda: "",
+    jenis_denda: "terlambat",
+    deskripsi: "",
+  });
+  const [success, setSuccess] = useState("");
 
+  // Fetch all data
   useEffect(() => {
-    const fetchHistory = async () => {
-      if (!id) {
-        setLoading(false);
-        return;
-      }
-
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
+    const fetchAll = async () => {
+      setLoading(true);
+      setError("");
       try {
-        console.log('Fetching data for member ID:', id);
-
-        const [memberRes, historyRes, booksRes, finesRes] = await Promise.all([
-          axios.get(`${API_URL}member/${id}`, {
-            headers: { 
-              Authorization: `Bearer ${token}`,
-              Accept: 'application/json'
-            }
+        const token = localStorage.getItem("token");
+        const [fineRes, memberRes, bookRes, lendingRes] = await Promise.all([
+          axios.get(`${API_URL}denda`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
           }),
-          axios.get(`${API_URL}peminjaman`, {
-            headers: { 
-              Authorization: `Bearer ${token}`,
-              Accept: 'application/json'
-            }
+          axios.get(`${API_URL}member`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
           }),
           axios.get(`${API_URL}buku`, {
-            headers: { 
-              Authorization: `Bearer ${token}`,
-              Accept: 'application/json'
-            }
+            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
           }),
-          axios.get(`${API_URL}denda`, {
-            headers: { 
-              Authorization: `Bearer ${token}`,
-              Accept: 'application/json'
-            }
-          })
+          axios.get(`${API_URL}peminjaman`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
+          }),
         ]);
-
-        // Set data immediately after receiving responses
-        setMember(memberRes.data.data || memberRes.data);
-        setBooks(booksRes.data.data || []);
-
-        // Filter and set history
-        const lendingData = historyRes.data.data || [];
-        const memberHistory = lendingData.filter(
-          lending => String(lending.id_member) === String(id)
-        );
-        setHistory(memberHistory);
-
-        // Filter and set fines
-        const finesData = finesRes.data.data || [];
-        const memberFines = finesData.filter(
-          fine => String(fine.id_member) === String(id)
-        );
-        setFines(memberFines);
-
+        setFines(fineRes.data.data || []);
+        setMembers(Array.isArray(memberRes.data) ? memberRes.data : (memberRes.data.data || []));
+        setBooks(Array.isArray(bookRes.data) ? bookRes.data : (bookRes.data.data || []));
+        setLendings(Array.isArray(lendingRes.data) ? lendingRes.data : (lendingRes.data.data || []));
+        console.log("Fines:", fineRes.data.data);
+        console.log("Members:", Array.isArray(memberRes.data) ? memberRes.data : memberRes.data.data);
+        console.log("Books:", Array.isArray(bookRes.data) ? bookRes.data : bookRes.data.data);
       } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(err.response?.data?.message || "Failed to load data");
+        setError("Gagal mengambil data");
       } finally {
-        // Always set loading to false when done
         setLoading(false);
       }
     };
+    fetchAll();
+  }, []);
 
-    // Reset loading when id changes
-    setLoading(true);
-    fetchHistory();
-  }, [id]);
+  // Handle form submit (POST denda)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(`${API_URL}denda`, form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      setSuccess("Denda berhasil ditambahkan");
+      setForm({
+        id_member: "",
+        id_buku: "",
+        jumlah_denda: "",
+        jenis_denda: "terlambat",
+        deskripsi: "",
+      });
+      // Refresh data
+      const fineRes = await axios.get(`${API_URL}denda`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
+      });
+      setFines(fineRes.data.data || []);
+    } catch (err) {
+      setError("Gagal menambah denda");
+    }
+  };
 
-  // Add total fines calculation
-  const totalFines = fines.reduce((sum, fine) => sum + Number(fine.jumlah_denda), 0);
+  // Helper untuk tampilkan nama member/buku
+  const getMemberName = (id) => members.find((m) => m.id === id)?.nama || id;
+  const getBookTitle = (id) => books.find((b) => b.id === id)?.judul || id;
 
-  if (loading) return (
-    <div className="flex justify-center items-center h-screen">
-      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-    </div>
-  );
+  // Tambahkan fungsi ini di dalam FinePage
+  const handleAutoFill = (changedField, value) => {
+    let newForm = { ...form, [changedField]: value };
 
-  if (error) {
-    return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      </div>
+    const selectedMember = changedField === "id_member" ? value : form.id_member;
+    const selectedBook = changedField === "id_buku" ? value : form.id_buku;
+    let jenisDenda = changedField === "jenis_denda" ? value : form.jenis_denda;
+
+    const lending = lendings.find(
+      l => String(l.id_member) === String(selectedMember) && String(l.id_buku) === String(selectedBook)
     );
-  }
+
+    let jumlahDenda = "";
+    let deskripsi = "";
+
+    if (lending) {
+      const today = new Date().toISOString().split("T")[0];
+      let telat = 0;
+      if (today > lending.tgl_pengembalian) {
+        const tglKembali = new Date(lending.tgl_pengembalian);
+        const tglHariIni = new Date(today);
+        const diffTime = tglHariIni - tglKembali;
+        telat = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+      }
+
+      if (telat > 0) {
+        // Default ke terlambat jika telat
+        if (changedField === "id_member" || changedField === "id_buku") {
+          jenisDenda = "terlambat";
+        }
+        if (jenisDenda === "terlambat" || (jenisDenda === "kerusakan" && telat > 0)) {
+          jumlahDenda = telat * 1000;
+          deskripsi = `Terlambat ${telat} hari`;
+          if (jenisDenda === "kerusakan") {
+            jumlahDenda = Number(jumlahDenda) + 5000;
+            deskripsi = (deskripsi ? deskripsi + " & " : "") + "Kerusakan buku";
+          }
+        }
+      } else {
+        // Tidak telat, kosongkan field denda
+        jenisDenda = "";
+        jumlahDenda = "";
+        deskripsi = "";
+      }
+    } else {
+      // Default jika tidak ada lending
+      if (jenisDenda === "terlambat") {
+        jumlahDenda = 1000;
+        deskripsi = "Denda keterlambatan";
+      } else if (jenisDenda === "kerusakan") {
+        jumlahDenda = 5000;
+        deskripsi = "Kerusakan buku";
+      } else {
+        jumlahDenda = "";
+        deskripsi = "";
+      }
+    }
+
+    newForm.jenis_denda = jenisDenda;
+    newForm.jumlah_denda = jumlahDenda;
+    newForm.deskripsi = deskripsi;
+
+    setForm(newForm);
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {member && (
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold">Riwayat Peminjaman - {member.nama}</h2>
-          <div className="mt-2 flex gap-4">
-            <p className="text-gray-600">Total Peminjaman: {history.length}</p>
-            <p className="text-red-600">Total Denda: Rp {totalFines.toLocaleString()}</p>
-          </div>
-        </div>
-      )}
+      <h2 className="text-2xl font-bold mb-4">Data Denda</h2>
 
+      {/* Form Tambah Denda */}
+      <form onSubmit={handleSubmit} className="mb-8 bg-white p-6 rounded shadow space-y-4">
+        <div>
+          <label className="block font-medium mb-1">Member</label>
+          <select
+            className="border rounded px-3 py-2 w-full"
+            value={form.id_member}
+            onChange={e => handleAutoFill("id_member", e.target.value)}
+            required
+          >
+            <option value="">Pilih Member</option>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>
+                {m.id} - {m.nama}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block font-medium mb-1">Buku</label>
+          <select
+            className="border rounded px-3 py-2 w-full"
+            value={form.id_buku}
+            onChange={e => handleAutoFill("id_buku", e.target.value)}
+            required
+          >
+            <option value="">Pilih Buku</option>
+            {books.map(b => (
+              <option key={b.id} value={b.id}>
+                {b.id} - {b.judul}
+              </option>
+            ))}
+          </select>
+        </div>
+        {form.jenis_denda && (
+          <>
+            <div>
+              <label className="block font-medium mb-1">Jumlah Denda</label>
+              <input
+                type="number"
+                className="border rounded px-3 py-2 w-full"
+                value={form.jumlah_denda}
+                onChange={e => setForm({ ...form, jumlah_denda: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <label className="block font-medium mb-1">Deskripsi</label>
+              <input
+                type="text"
+                className="border rounded px-3 py-2 w-full"
+                value={form.deskripsi}
+                onChange={e => setForm({ ...form, deskripsi: e.target.value })}
+                required
+              />
+            </div>
+          </>
+        )}
+        {form.jenis_denda && (
+          <div>
+            <label className="block font-medium mb-1">Jenis Denda</label>
+            <select
+              className="border rounded px-3 py-2 w-full"
+              value={form.jenis_denda}
+              onChange={e => handleAutoFill("jenis_denda", e.target.value)}
+              required
+            >
+              <option value="terlambat">Terlambat</option>
+              <option value="kerusakan">Kerusakan</option>
+              <option value="lainnya">Lainnya</option>
+            </select>
+          </div>
+        )}
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Simpan Denda
+        </button>
+        {success && <div className="text-green-600 mt-2">{success}</div>}
+        {error && <div className="text-red-600 mt-2">{error}</div>}
+      </form>
+
+      {/* Tabel Denda */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Buku
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Tanggal Pinjam
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Tanggal Kembali
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Status
-              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Member</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Buku</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jenis Denda</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jumlah</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deskripsi</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {history.length === 0 ? (
+          <tbody className="divide-y divide-gray-200">
+            {loading ? (
               <tr>
-                <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
-                  Tidak ada riwayat peminjaman
+                <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                  Loading...
+                </td>
+              </tr>
+            ) : fines.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                  Tidak ada data denda
                 </td>
               </tr>
             ) : (
-              history.map((item) => (
-                <tr key={item.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {books.find(b => b.id === item.id_buku)?.judul || item.id_buku}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{item.tgl_pinjam}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{item.tgl_pengembalian}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                      ${Number(item.status) === 1 ? 'bg-green-100 text-green-800' : 
-                        Number(item.status) === 2 ? 'bg-red-100 text-red-800' : 
-                        'bg-blue-100 text-blue-800'}`}>
-                      {Number(item.status) === 1 ? 'Dikembalikan' : 
-                       Number(item.status) === 2 ? 'Terlambat' : 'Dipinjam'}
-                    </span>
-                  </td>
+              fines.map((denda) => (
+                <tr key={denda.id}>
+                  <td className="px-6 py-4">{denda.id}</td>
+                  <td className="px-6 py-4">{getMemberName(denda.id_member)}</td>
+                  <td className="px-6 py-4">{getBookTitle(denda.id_buku)}</td>
+                  <td className="px-6 py-4">{denda.jenis_denda}</td>
+                  <td className="px-6 py-4">Rp {Number(denda.jumlah_denda).toLocaleString("id-ID")}</td>
+                  <td className="px-6 py-4">{denda.deskripsi}</td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
-
-      {/* Add fines history table */}
-      {fines.length > 0 && (
-        <div className="mt-8">
-          <h3 className="text-xl font-bold mb-4">Riwayat Denda</h3>
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Buku
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Jenis Denda
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Jumlah
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Deskripsi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {fines.map((fine) => (
-                  <tr key={fine.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {books.find(b => b.id === fine.id_buku)?.judul || fine.id_buku}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap capitalize">
-                      {fine.jenis_denda}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      Rp {Number(fine.jumlah_denda).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {fine.deskripsi}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

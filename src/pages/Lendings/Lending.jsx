@@ -29,6 +29,10 @@ export default function Lending() {
   const [returnedIds, setReturnedIds] = useState(new Set());
   const [alert, setAlert] = useState({ message: "", type: "" });
   const navigate = useNavigate();
+  const handleSubmitAddLending = (e) => {
+  e.preventDefault();
+  handleAddLending();
+};
 
   // Fix fetchLendings function to handle member-specific data
   const fetchLendings = async () => {
@@ -48,12 +52,14 @@ export default function Lending() {
       });
       const lendingData = res.data.data || [];
       const updatedData = lendingData.map(lending => {
-        let status = Number(lending.status);
-        if (status === 1) return { ...lending, status: 1 };
+        // Cek status_pengembalian dari API (bisa 1 atau true)
+        if (lending.status_pengembalian === 1 || lending.status_pengembalian === true) {
+          return { ...lending, status: 1 };
+        }
         const today = new Date().toISOString().split("T")[0];
         const isLate = today > lending.tgl_pengembalian;
+        let status = 0;
         if (isLate) status = 2;
-        else status = 0;
         return { ...lending, status };
       });
       setLendings(updatedData);
@@ -84,8 +90,8 @@ export default function Lending() {
           } 
         })
       ]);
-      setMembers(memberRes.data.data || []);
-      setBooks(bookRes.data.data || []);
+      setMembers(Array.isArray(memberRes.data) ? memberRes.data : (memberRes.data.data || []));
+      setBooks(Array.isArray(bookRes.data) ? bookRes.data : (bookRes.data.data || []));
     } catch (err) {
       setMembers([]);
       setBooks([]);
@@ -96,13 +102,12 @@ export default function Lending() {
   useEffect(() => {
     fetchLendings();
     fetchMembersAndBooks();
-  }, []); // Hapus returnedIds dari dependency
+  }, []);
 
-  // Add this after your state declarations
   useEffect(() => {
-    console.log('Current lendings:', lendings);
-    console.log('Current members:', members);
-    console.log('Current books:', books);
+    console.log("Lendings:", lendings);
+    console.log("Members:", members);
+    console.log("Books:", books);
   }, [lendings, members, books]);
 
   // Fix handleAddLending to include proper data structure
@@ -192,23 +197,7 @@ export default function Lending() {
       const lending = lendings.find(l => l.id === id);
       if (!lending) return;
 
-      // Update status peminjaman
-      await axios.put(
-        `${API_URL}peminjaman/pengembalian/${id}`,
-        {
-          id_peminjaman: id,
-          tgl_pengembalian: today,
-          status: 1
-        },
-        { 
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          } 
-        }
-      );
-
-      // Jika terlambat, buat denda
+      // Cek keterlambatan SEBELUM update pengembalian
       const isLate = today > lending.tgl_pengembalian;
       if (isLate) {
         const diffTime = new Date(today) - new Date(lending.tgl_pengembalian);
@@ -223,28 +212,44 @@ export default function Lending() {
             jenis_denda: 'terlambat',
             deskripsi: `Terlambat ${diffDays} hari`,
           },
-          { 
-            headers: { 
+          {
+            headers: {
               Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json'
-            } 
+            }
           }
         );
       }
 
+      // Update status peminjaman setelah cek denda
+      await axios.put(
+        `${API_URL}peminjaman/pengembalian/${id}`,
+        {
+          id_peminjaman: id,
+          tgl_pengembalian: today,
+          status: 1
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
       setShowReturnModal(false);
-      setAlert({ 
-        message: `Buku berhasil dikembalikan${isLate ? ' dengan denda' : ''}`, 
-        type: 'success' 
+      setAlert({
+        message: `Buku berhasil dikembalikan${isLate ? ' dengan denda' : ''}`,
+        type: 'success'
       });
 
       // Fetch ulang agar status benar-benar update dari API
       await fetchLendings();
 
     } catch (err) {
-      setAlert({ 
+      setAlert({
         message: "Gagal mengembalikan buku: " + (err.response?.data?.message || err.message),
-        type: "error" 
+        type: "error"
       });
     }
   };
@@ -323,14 +328,12 @@ export default function Lending() {
           <button
             onClick={() => {
               setShowAddModal(true);
-              fetchMembersAndBooks(); // Pastikan fetch data setiap buka modal
+              fetchMembersAndBooks();
             }}
             className="flex items-center gap-2 px-4 py-2 rounded bg-white border border-blue-600 text-blue-700 font-semibold shadow hover:bg-blue-50 hover:text-blue-800 transition text-sm"
             style={{ minWidth: 140 }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            {/* ...icon dan label... */}
             Tambah
           </button>
         </div>
@@ -358,8 +361,12 @@ export default function Lending() {
             ) : (
               filteredLendings.map((lending) => (
                 <tr key={lending.id} className="border-t hover:bg-gray-50">
-                  <td className="p-4 text-center">{members.find(m => m.id === lending.id_member)?.nama || lending.id_member}</td>
-                  <td className="p-4 text-center">{books.find(b => b.id === lending.id_buku)?.judul || lending.id_buku}</td>
+                  <td className="p-4 text-center">
+                    {members.find(m => m.id === lending.id_member)?.nama || lending.id_member}
+                  </td>
+                  <td className="p-4 text-center">
+                    {books.find(b => b.id === lending.id_buku)?.judul || lending.id_buku}
+                  </td>
                   <td className="p-4 text-center">{lending.tgl_pinjam}</td>
                   <td className="p-4 text-center">{lending.tgl_pengembalian}</td>
                   <td className="p-4 text-center">
@@ -402,7 +409,7 @@ export default function Lending() {
                 <span className="ml-4 text-gray-600">Memuat data...</span>
               </div>
             ) : (
-              <form>
+              <form onSubmit={handleSubmitAddLending}>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium">Member</label>
@@ -410,6 +417,7 @@ export default function Lending() {
                       className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-200"
                       value={form.id_member}
                       onChange={(e) => setForm({ ...form, id_member: e.target.value })}
+                      required
                     >
                       <option value="">Pilih Member</option>
                       {members.map((m) => (
@@ -423,6 +431,7 @@ export default function Lending() {
                       className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-200"
                       value={form.id_buku}
                       onChange={(e) => setForm({ ...form, id_buku: e.target.value })}
+                      required
                     >
                       <option value="">Pilih Buku</option>
                       {books.map((b) => (
@@ -451,22 +460,23 @@ export default function Lending() {
                     </div>
                   </div>
                 </div>
+                <div className="flex justify-end gap-2 mt-8">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 border rounded hover:bg-gray-100"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  >
+                    Simpan
+                  </button>
+                </div>
               </form>
             )}
-            <div className="flex justify-end gap-2 mt-8">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 border rounded hover:bg-gray-100"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleAddLending}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
-                Simpan
-              </button>
-            </div>
           </div>
         </div>
       )}
