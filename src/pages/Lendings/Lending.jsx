@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { API_URL } from "../../constan";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
 
 export default function Lending() {
   const [lendings, setLendings] = useState([]);
@@ -26,9 +27,9 @@ export default function Lending() {
   const [search, setSearch] = useState("");
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailLending, setDetailLending] = useState(null);
-  const [returnedIds, setReturnedIds] = useState(new Set());
+  // const [returnedIds, setReturnedIds] = useState(new Set());
   const [alert, setAlert] = useState({ message: "", type: "" });
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const handleSubmitAddLending = (e) => {
   e.preventDefault();
   handleAddLending();
@@ -185,6 +186,7 @@ export default function Lending() {
       setShowReturnModal(true); // Baru tampilkan modal konfirmasi pengembalian
     } catch (err) {
       alert("Gagal menyimpan denda");
+      console.error("Error saving fine:", err);
     }
   };
 
@@ -302,6 +304,87 @@ export default function Lending() {
     );
   };
 
+  // Tambahkan fungsi exportExcel di dalam komponen Lending
+  const exportExcel = () => {
+    // Siapkan data untuk diekspor
+    const data = filteredLendings.map(lending => {
+      const member = members.find(m => m.id === lending.id_member);
+      const book = books.find(b => b.id === lending.id_buku);
+      return {
+        "Nama Member": member?.nama || lending.id_member,
+        "Judul Buku": book?.judul || lending.id_buku,
+        "Tanggal Pinjam": lending.tgl_pinjam,
+        "Tanggal Kembali": lending.tgl_pengembalian,
+        "Status": Number(lending.status) === 1 ? "Dikembalikan" : (Number(lending.status) === 2 ? "Terlambat" : "Dipinjam"),
+      };
+    });
+
+    // Buat worksheet dari data (mulai dari baris ke-2, karena baris 1 untuk judul)
+    const worksheet = XLSX.utils.json_to_sheet(data, { origin: "A2" });
+
+    // Tambahkan judul di baris pertama
+    const title = "Laporan Data Peminjaman";
+    worksheet["A1"] = { t: "s", v: title, s: {
+    font: { bold: true, sz: 16 },
+    alignment: { horizontal: "center", vertical: "center" }
+  } };
+
+    // Merge judul dari kolom A sampai kolom terakhir header
+    const colCount = Object.keys(data[0] || {}).length;
+    worksheet["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } } // merge A1:E1 (misal 5 kolom)
+    ];
+
+    // Atur lebar kolom otomatis
+    const columnWidths = Object.keys(data[0] || {}).map(key => ({
+      wch: Math.max(
+        key.length,
+        ...data.map(row => (row[key] ? row[key].toString().length : 0))
+      ) + 4 // padding
+    }));
+    worksheet['!cols'] = columnWidths;
+
+    // Styling header (baris ke-2, index 1)
+    for (let C = 0; C < colCount; ++C) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 1, c: C });
+      if (!worksheet[cellAddress]) continue;
+      worksheet[cellAddress].s = {
+        font: { bold: true },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "medium", color: { rgb: "000000" } },
+          bottom: { style: "medium", color: { rgb: "000000" } },
+          left: { style: "medium", color: { rgb: "000000" } },
+          right: { style: "medium", color: { rgb: "000000" } }
+        }
+      };
+    }
+
+    // Tambahkan border ke semua sel data
+    const range = XLSX.utils.decode_range(worksheet['!ref']);
+    for (let R = 2; R <= range.e.r; ++R) { // mulai dari baris ke-3 (index 2)
+      for (let C = 0; C < colCount; ++C) {
+        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!worksheet[cellAddress]) continue;
+        worksheet[cellAddress].s = {
+          ...(worksheet[cellAddress].s || {}),
+          border: {
+            top: { style: "thin", color: { rgb: "000000" } },
+            bottom: { style: "thin", color: { rgb: "000000" } },
+            left: { style: "thin", color: { rgb: "000000" } },
+            right: { style: "thin", color: { rgb: "000000" } }
+          },
+          alignment: { horizontal: "center", vertical: "center" }
+        };
+      }
+    }
+
+    // Buat workbook dan export
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Peminjaman");
+    XLSX.writeFile(workbook, "data_peminjaman.xlsx", { cellStyles: true });
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -326,6 +409,13 @@ export default function Lending() {
             style={{ minWidth: 220 }}
           />
           <button
+            onClick={exportExcel}
+            className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition text-sm"
+            style={{ minWidth: 140 }}
+          >
+            Export Excel
+          </button>
+          <button
             onClick={() => {
               setShowAddModal(true);
               fetchMembersAndBooks();
@@ -333,7 +423,6 @@ export default function Lending() {
             className="flex items-center gap-2 px-4 py-2 rounded bg-white border border-blue-600 text-blue-700 font-semibold shadow hover:bg-blue-50 hover:text-blue-800 transition text-sm"
             style={{ minWidth: 140 }}
           >
-            {/* ...icon dan label... */}
             Tambah
           </button>
         </div>

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { API_URL } from "../../constan";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function FinePage() {
   const [fines, setFines] = useState([]);
@@ -48,6 +50,7 @@ export default function FinePage() {
         console.log("Books:", Array.isArray(bookRes.data) ? bookRes.data : bookRes.data.data);
       } catch (err) {
         setError("Gagal mengambil data");
+        console.error("Error fetching data:", err);
       } finally {
         setLoading(false);
       }
@@ -83,6 +86,7 @@ export default function FinePage() {
       setFines(fineRes.data.data || []);
     } catch (err) {
       setError("Gagal menambah denda");
+      console.error("Error adding fine:", err);
     }
   };
 
@@ -153,6 +157,39 @@ export default function FinePage() {
     newForm.deskripsi = deskripsi;
 
     setForm(newForm);
+  };
+
+  const exportFinePDF = (memberId) => {
+    console.log("Export PDF untuk memberId:", memberId);
+    const member = members.find(m => String(m.id) === String(memberId));
+    const data = fines
+      .filter(f => String(f.id_member) === String(memberId))
+      .map((fine, idx) => [
+        idx + 1,
+        getBookTitle(fine.id_buku),
+        fine.jenis_denda,
+        `Rp ${Number(fine.jumlah_denda).toLocaleString("id-ID")}`,
+        fine.deskripsi
+      ]);
+    console.log("Data yang akan diexport:", data);
+
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text(`Riwayat Denda: ${member?.nama || memberId}`, 14, 18);
+
+    autoTable(doc, {
+      head: [["No", "Judul Buku", "Jenis Denda", "Jumlah", "Deskripsi"]],
+      body: data,
+      startY: 25,
+      styles: { halign: "center", valign: "middle" },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      tableLineColor: [0, 0, 0],
+      tableLineWidth: 0.1,
+    });
+    
+
+    doc.save(`riwayat_denda_${member?.nama || memberId}.pdf`);
   };
 
   return (
@@ -241,6 +278,27 @@ export default function FinePage() {
         {success && <div className="text-green-600 mt-2">{success}</div>}
         {error && <div className="text-red-600 mt-2">{error}</div>}
       </form>
+
+      {/* Export PDF */}
+      <div className="flex items-center gap-2 mb-4">
+        <select
+          className="border rounded px-3 py-2"
+          value={form.id_member}
+          onChange={e => setForm({ ...form, id_member: e.target.value })}
+        >
+          <option value="">Pilih Member untuk Export PDF</option>
+          {members.map(m => (
+            <option key={m.id} value={m.id}>{m.nama}</option>
+          ))}
+        </select>
+        <button
+          onClick={() => exportFinePDF(form.id_member)}
+          disabled={!form.id_member}
+          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50"
+        >
+          Export PDF Denda Member
+        </button>
+      </div>
 
       {/* Tabel Denda */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
