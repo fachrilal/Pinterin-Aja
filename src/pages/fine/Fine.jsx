@@ -19,6 +19,8 @@ export default function FinePage() {
     deskripsi: "",
   });
   const [success, setSuccess] = useState("");
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Fetch all data
   useEffect(() => {
@@ -192,95 +194,103 @@ export default function FinePage() {
     doc.save(`riwayat_denda_${member?.nama || memberId}.pdf`);
   };
 
+  const paginatedFines = fines.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  const totalPages = Math.ceil(fines.length / itemsPerPage);
+
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Data Denda</h2>
+    <div className="p-6 max-w-5xl mx-auto text-gray-800">
+      <h1 className="text-2xl font-semibold mb-6">Data Denda</h1>
 
       {/* Form Tambah Denda */}
-      <form onSubmit={handleSubmit} className="mb-8 bg-white p-6 rounded shadow space-y-4">
-        <div>
-          <label className="block font-medium mb-1">Member</label>
-          <select
-            className="border rounded px-3 py-2 w-full"
-            value={form.id_member}
-            onChange={e => handleAutoFill("id_member", e.target.value)}
-            required
-          >
-            <option value="">Pilih Member</option>
-            {members.map(m => (
-              <option key={m.id} value={m.id}>
-                {m.id} - {m.nama}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block font-medium mb-1">Buku</label>
-          <select
-            className="border rounded px-3 py-2 w-full"
-            value={form.id_buku}
-            onChange={e => handleAutoFill("id_buku", e.target.value)}
-            required
-          >
-            <option value="">Pilih Buku</option>
-            {books.map(b => (
-              <option key={b.id} value={b.id}>
-                {b.id} - {b.judul}
-              </option>
-            ))}
-          </select>
-        </div>
-        {form.jenis_denda && (
-          <>
-            <div>
-              <label className="block font-medium mb-1">Jumlah Denda</label>
-              <input
-                type="number"
-                className="border rounded px-3 py-2 w-full"
-                value={form.jumlah_denda}
-                onChange={e => setForm({ ...form, jumlah_denda: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="block font-medium mb-1">Deskripsi</label>
-              <input
-                type="text"
-                className="border rounded px-3 py-2 w-full"
-                value={form.deskripsi}
-                onChange={e => setForm({ ...form, deskripsi: e.target.value })}
-                required
-              />
-            </div>
-          </>
-        )}
-        {form.jenis_denda && (
+      <div className="bg-white rounded-2xl shadow-md border border-gray-200 mb-8 p-8">
+        <h2 className="text-lg font-bold mb-4 text-gray-900">Tambah Denda</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block font-medium mb-1">Jenis Denda</label>
+            <label className="block font-medium mb-1">Member</label>
             <select
-              className="border rounded px-3 py-2 w-full"
-              value={form.jenis_denda}
-              onChange={e => handleAutoFill("jenis_denda", e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-200"
+              value={form.id_member}
+              onChange={e => handleAutoFill("id_member", e.target.value)}
               required
             >
-              <option value="terlambat">Terlambat</option>
-              <option value="kerusakan">Kerusakan</option>
-              <option value="lainnya">Lainnya</option>
+              <option value="">Pilih Member</option>
+              {members.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.id} - {m.nama}
+                </option>
+              ))}
             </select>
           </div>
-        )}
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Simpan Denda
-        </button>
-        {success && <div className="text-green-600 mt-2">{success}</div>}
-        {error && <div className="text-red-600 mt-2">{error}</div>}
-      </form>
+          <div>
+            <label className="block font-medium mb-1">Buku</label>
+            <select
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-200"
+              value={form.id_buku}
+              onChange={e => handleAutoFill("id_buku", e.target.value)}
+              required
+            >
+              <option value="">Pilih Buku</option>
+              {books.map(b => (
+                <option key={b.id} value={b.id}>
+                  {b.id} - {b.judul}
+                </option>
+              ))}
+            </select>
+          </div>
+          {form.jenis_denda && (
+            <>
+              <div>
+                <label className="block font-medium mb-1">Jumlah Denda</label>
+                <input
+                  type="number"
+                  className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-200"
+                  value={form.jumlah_denda}
+                  onChange={e => setForm({ ...form, jumlah_denda: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block font-medium mb-1">Deskripsi</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-200"
+                  value={form.deskripsi}
+                  onChange={e => setForm({ ...form, deskripsi: e.target.value })}
+                  required
+                />
+              </div>
+            </>
+          )}
+          {form.jenis_denda && (
+            <div>
+              <label className="block font-medium mb-1">Jenis Denda</label>
+              <select
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-200"
+                value={form.jenis_denda}
+                onChange={e => handleAutoFill("jenis_denda", e.target.value)}
+                required
+              >
+                <option value="terlambat">Terlambat</option>
+                <option value="kerusakan">Kerusakan</option>
+                <option value="lainnya">Lainnya</option>
+              </select>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 mt-8">
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Simpan Denda
+            </button>
+          </div>
+          {success && <div className="text-green-600 mt-2">{success}</div>}
+          {error && <div className="text-red-600 mt-2">{error}</div>}
+        </form>
+      </div>
 
       {/* Export PDF */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-6">
         <select
           className="border rounded px-3 py-2"
           value={form.id_member}
@@ -301,16 +311,16 @@ export default function FinePage() {
       </div>
 
       {/* Tabel Denda */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-x-auto">
+        <table className="min-w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Member</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Buku</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jenis Denda</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jumlah</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deskripsi</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">ID</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Member</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Buku</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Jenis Denda</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Jumlah</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Deskripsi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -327,20 +337,44 @@ export default function FinePage() {
                 </td>
               </tr>
             ) : (
-              fines.map((denda) => (
-                <tr key={denda.id}>
-                  <td className="px-6 py-4">{denda.id}</td>
-                  <td className="px-6 py-4">{getMemberName(denda.id_member)}</td>
-                  <td className="px-6 py-4">{getBookTitle(denda.id_buku)}</td>
-                  <td className="px-6 py-4">{denda.jenis_denda}</td>
-                  <td className="px-6 py-4">Rp {Number(denda.jumlah_denda).toLocaleString("id-ID")}</td>
-                  <td className="px-6 py-4">{denda.deskripsi}</td>
+              paginatedFines.map((denda) => (
+                <tr key={denda.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 text-center">{denda.id}</td>
+                  <td className="px-6 py-4 text-center">{getMemberName(denda.id_member)}</td>
+                  <td className="px-6 py-4 text-center">{getBookTitle(denda.id_buku)}</td>
+                  <td className="px-6 py-4 text-center">{denda.jenis_denda}</td>
+                  <td className="px-6 py-4 text-center">Rp {Number(denda.jumlah_denda).toLocaleString("id-ID")}</td>
+                  <td className="px-6 py-4 text-center">{denda.deskripsi}</td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center px-4 py-3 bg-gray-50 border-t">
+          <span className="text-sm text-gray-600">
+            Halaman {page} dari {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1 rounded border text-sm bg-white hover:bg-gray-100 disabled:opacity-50"
+            >
+              Prev
+            </button>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-3 py-1 rounded border text-sm bg-white hover:bg-gray-100 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

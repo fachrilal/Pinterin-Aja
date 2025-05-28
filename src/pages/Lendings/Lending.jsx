@@ -3,6 +3,9 @@ import axios from "axios";
 import { API_URL } from "../../constan";
 // import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
+import { Bar } from "react-chartjs-2";
+import { Chart, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from "chart.js";
+Chart.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 export default function Lending() {
   const [lendings, setLendings] = useState([]);
@@ -385,6 +388,55 @@ export default function Lending() {
     XLSX.writeFile(workbook, "data_peminjaman.xlsx", { cellStyles: true });
   };
 
+  const getMonthlyLendingStats = () => {
+    // Ambil data tahun ini
+    const now = new Date();
+    const year = now.getFullYear();
+    const stats = Array(12).fill(0);
+    lendings.forEach(l => {
+      if (!l.tgl_pinjam) return;
+      const date = new Date(l.tgl_pinjam);
+      if (date.getFullYear() === year) {
+        stats[date.getMonth()]++;
+      }
+    });
+    return stats;
+  };
+
+  const monthLabels = [
+    "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+    "Jul", "Agu", "Sep", "Okt", "Nov", "Des"
+  ];
+
+  const monthlyStats = getMonthlyLendingStats();
+
+  const chartData = {
+    labels: monthLabels,
+    datasets: [
+      {
+        label: `Peminjaman ${new Date().getFullYear()}`,
+        data: monthlyStats,
+        backgroundColor: "#2563eb",
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: true },
+    },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1 } }
+    }
+  };
+
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(filteredLendings.length / itemsPerPage);
+  const paginatedLendings = filteredLendings.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -410,7 +462,7 @@ export default function Lending() {
           />
           <button
             onClick={exportExcel}
-            className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition text-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition text-sm"
             style={{ minWidth: 140 }}
           >
             Export Excel
@@ -441,14 +493,14 @@ export default function Lending() {
             </tr>
           </thead>
           <tbody>
-            {filteredLendings.length === 0 ? (
+            {paginatedLendings.length === 0 ? (
               <tr>
                 <td colSpan={6} className="p-10 text-center text-gray-500">
                   Tidak ada data peminjaman
                 </td>
               </tr>
             ) : (
-              filteredLendings.map((lending) => (
+              paginatedLendings.map((lending) => (
                 <tr key={lending.id} className="border-t hover:bg-gray-50">
                   <td className="p-4 text-center">
                     {members.find(m => m.id === lending.id_member)?.nama || lending.id_member}
@@ -486,7 +538,29 @@ export default function Lending() {
           </tbody>
         </table>
       </div>
-
+      {totalPages > 1 && (
+  <div className="flex justify-between items-center px-4 py-3 bg-gray-50 border-t">
+    <span className="text-sm text-gray-600">
+      Halaman {page} dari {totalPages}
+    </span>
+    <div className="flex gap-2">
+      <button
+        onClick={() => setPage(p => Math.max(1, p - 1))}
+        disabled={page === 1}
+        className="px-3 py-1 rounded border text-sm bg-white hover:bg-gray-100 disabled:opacity-50"
+      >
+        Prev
+      </button>
+      <button
+        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+        disabled={page === totalPages}
+        className="px-3 py-1 rounded border text-sm bg-white hover:bg-gray-100 disabled:opacity-50"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+)}
       {/* Modal Tambah Peminjaman */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -702,6 +776,12 @@ export default function Lending() {
           </div>
         </div>
       )}
+
+      {/* Grafik Bar Peminjaman per Bulan */}
+      <div className="bg-white rounded shadow p-4 mb-8">
+        <h2 className="text-lg font-bold mb-2">Grafik Peminjaman per Bulan</h2>
+        <Bar data={chartData} options={chartOptions} height={80} />
+      </div>
     </div>
   );
 }
