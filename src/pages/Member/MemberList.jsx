@@ -20,6 +20,8 @@ export default function MemberIndex() {
   });
 
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailMember, setDetailMember] = useState(null);
 
   const API_URL = "http://45.64.100.26:88/perpus-api/public/api/member";
   const token = localStorage.getItem("token");
@@ -27,7 +29,7 @@ export default function MemberIndex() {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
-    }, 
+    },
   };
 
   const fetchMembers = async () => {
@@ -96,7 +98,11 @@ export default function MemberIndex() {
         if (password) payload.password = password;
         await axios.put(`${API_URL}/${editingMember.id}`, payload, authHeader);
       } else {
-        await axios.post(API_URL, { nama, email, password, alamat, no_ktp, tgl_lahir }, authHeader);
+        await axios.post(
+          API_URL,
+          { nama, email, password, alamat, no_ktp, tgl_lahir },
+          authHeader
+        );
       }
 
       await fetchMembers();
@@ -127,8 +133,19 @@ export default function MemberIndex() {
           className="flex items-center gap-2 px-4 py-2 rounded bg-white border border-blue-600 text-blue-700 font-semibold shadow hover:bg-blue-50 hover:text-blue-800 transition text-sm"
           style={{ minWidth: 140 }}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           Tambah
         </button>
@@ -171,6 +188,15 @@ export default function MemberIndex() {
                     <td className="p-4">{member.no_ktp}</td>
                     <td className="p-4">{member.tgl_lahir}</td>
                     <td className="p-4 flex gap-2">
+                      <button
+                        onClick={() => {
+                          setDetailMember(member);
+                          setShowDetailModal(true);
+                        }}
+                        className="p-2 rounded bg-blue-100 hover:bg-blue-200 text-blue-800"
+                      >
+                        Detail
+                      </button>
                       <button
                         onClick={() => openEditModal(member)}
                         className="p-2 rounded bg-yellow-100 hover:bg-yellow-200 text-yellow-800"
@@ -251,7 +277,10 @@ export default function MemberIndex() {
           </div>
           <div>
             <label className="block text-sm font-medium">
-              Password {editingMember && <span className="text-gray-400">(Opsional)</span>}
+              Password{" "}
+              {editingMember && (
+                <span className="text-gray-400">(Opsional)</span>
+              )}
             </label>
             <input
               type="password"
@@ -259,7 +288,11 @@ export default function MemberIndex() {
               value={formData.password}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border rounded mt-1"
-              placeholder={editingMember ? "Kosongkan jika tidak diubah" : "Masukkan password"}
+              placeholder={
+                editingMember
+                  ? "Kosongkan jika tidak diubah"
+                  : "Masukkan password"
+              }
             />
           </div>
           <div className="pt-4 text-right">
@@ -294,6 +327,42 @@ export default function MemberIndex() {
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           >
             Hapus
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal Detail Member */}
+      <Modal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        title="Detail Member"
+      >
+        {detailMember && (
+          <div className="space-y-2 text-sm">
+            <div>
+              <strong>Nama:</strong> {detailMember.nama}
+            </div>
+            <div>
+              <strong>Email:</strong> {detailMember.email}
+            </div>
+            <div>
+              <strong>Alamat:</strong> {detailMember.alamat}
+            </div>
+            <div>
+              <strong>No KTP:</strong> {detailMember.no_ktp}
+            </div>
+            <div>
+              <strong>Tanggal Lahir:</strong> {detailMember.tgl_lahir}
+            </div>
+            {/* Tambahkan field lain jika ada */}
+          </div>
+        )}
+        <div className="pt-4 text-right">
+          <button
+            onClick={() => setShowDetailModal(false)}
+            className="px-4 py-2 border rounded hover:bg-gray-100"
+          >
+            Tutup
           </button>
         </div>
       </Modal>

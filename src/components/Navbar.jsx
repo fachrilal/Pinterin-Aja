@@ -1,10 +1,11 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom' // tambahkan useLocation
 import { useEffect, useState } from 'react'
 import { HomeIcon, UserGroupIcon, BookOpenIcon, ArrowPathIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline'
 
 export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation() // ambil lokasi saat ini
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -16,6 +17,9 @@ export default function Navbar() {
     setIsLoggedIn(false)
     navigate('/login')
   }
+
+  // Fungsi untuk menentukan apakah path aktif
+  const isActive = (path) => location.pathname.startsWith(path)
 
   return (
     <div className="pt-20">
@@ -38,7 +42,7 @@ export default function Navbar() {
                 <li>
                   <Link
                     to="/dashboard"
-                    className="flex items-center space-x-1 hover:text-gray-900 transition"
+                    className={`flex items-center space-x-1 hover:text-gray-900 transition ${isActive('/dashboard') ? 'text-blue-700 font-bold' : ''}`}
                     title="Dashboard"
                   >
                     <HomeIcon className="w-5 h-5" />
@@ -47,7 +51,7 @@ export default function Navbar() {
                 <li>
                   <Link
                     to="/buku"
-                    className="flex items-center space-x-1 hover:text-gray-900 transition"
+                    className={`flex items-center space-x-1 hover:text-gray-900 transition ${isActive('/buku') ? 'text-blue-700 font-bold' : ''}`}
                     title="Books"
                   >
                     <BookOpenIcon className="w-5 h-5" />
@@ -56,7 +60,7 @@ export default function Navbar() {
                 <li>
                   <Link
                     to="/member"
-                    className="flex items-center space-x-1 hover:text-gray-900 transition"
+                    className={`flex items-center space-x-1 hover:text-gray-900 transition ${isActive('/member') ? 'text-blue-700 font-bold' : ''}`}
                     title="Member"
                   >
                     <UserGroupIcon className="w-5 h-5" />
@@ -65,17 +69,16 @@ export default function Navbar() {
                 <li>
                   <Link
                     to="/lending"
-                    className="flex items-center space-x-1 hover:text-gray-900 transition"
+                    className={`flex items-center space-x-1 hover:text-gray-900 transition ${isActive('/lending') ? 'text-blue-700 font-bold' : ''}`}
                     title="Peminjaman"
                   >
                     <ArrowPathIcon className="w-5 h-5" />
-                    
                   </Link>
                 </li>
                 <li>
                   <Link
                     to="/fine"
-                    className="flex items-center space-x-1 hover:text-gray-900 transition"
+                    className={`flex items-center space-x-1 hover:text-gray-900 transition ${isActive('/fine') ? 'text-blue-700 font-bold' : ''}`}
                     title="Denda"
                   >
                     <CurrencyDollarIcon className="w-5 h-5" />

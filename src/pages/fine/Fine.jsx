@@ -22,6 +22,9 @@ export default function FinePage() {
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
 
+  // State untuk member yang dipilih untuk melihat riwayat peminjaman
+  const [selectedMemberForLending, setSelectedMemberForLending] = useState("");
+
   // Fetch all data
   useEffect(() => {
     const fetchAll = async () => {
@@ -196,6 +199,11 @@ export default function FinePage() {
 
   const paginatedFines = fines.slice((page - 1) * itemsPerPage, page * itemsPerPage);
   const totalPages = Math.ceil(fines.length / itemsPerPage);
+
+  // Filter data peminjaman berdasarkan member yang dipilih
+  const lendingHistory = lendings.filter(
+    l => String(l.id_member) === String(selectedMemberForLending)
+  );
 
   return (
     <div className="p-6 max-w-5xl mx-auto text-gray-800">
@@ -375,6 +383,57 @@ export default function FinePage() {
           </div>
         </div>
       )}
+
+      {/* Riwayat Peminjaman Member */}
+      <div className="mt-8 mb-8">
+        <h2 className="text-lg font-bold mb-2 text-gray-900">Riwayat Peminjaman Member</h2>
+        <div className="flex items-center gap-2 mb-4">
+          <select
+            className="border rounded px-3 py-2"
+            value={selectedMemberForLending}
+            onChange={e => setSelectedMemberForLending(e.target.value)}
+          >
+            <option value="">Pilih Member</option>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{m.nama}</option>
+            ))}
+          </select>
+        </div>
+        {selectedMemberForLending && (
+          <div className="bg-white rounded-2xl shadow-md border border-gray-200 overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">ID</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Buku</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tanggal Pinjam</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tanggal Kembali</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {lendingHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                      Tidak ada riwayat peminjaman
+                    </td>
+                  </tr>
+                ) : (
+                  lendingHistory.map(l => (
+                    <tr key={l.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-center">{l.id}</td>
+                      <td className="px-6 py-4 text-center">{getBookTitle(l.id_buku)}</td>
+                      <td className="px-6 py-4 text-center">{l.tgl_pinjam}</td>
+                      <td className="px-6 py-4 text-center">{l.tgl_pengembalian}</td>
+                      <td className="px-6 py-4 text-center">{l.status || "-"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
